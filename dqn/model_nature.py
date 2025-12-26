@@ -1,6 +1,6 @@
-from gym import spaces
+import gymnasium as gym  # 修改这里
+from gymnasium import spaces  # 修改这里
 import torch.nn as nn
-import torch.nn.functional as F
 
 # Class structure loosely inspired by https://towardsdatascience.com/beating-video-games-with-deep-q-networks-7f73320b9592
 class DQN(nn.Module):

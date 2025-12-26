@@ -1,5 +1,6 @@
 # Inspired from https://github.com/raillab/dqn
-from gym import spaces
+import gymnasium as gym  # 修改这里
+from gymnasium import spaces  # 修改这里
 import numpy as np
 
 from dqn.model_nature import DQN as DQN_nature
@@ -18,7 +19,7 @@ class DQNAgent:
                  lr,
                  batch_size,
                  gamma,
-                 device=torch.device("cpu" ),
+                 device=torch.device("cpu"),
                  dqn_type="neurips"):
         """
         Initialise the DQN algorithm using the Adam optimiser

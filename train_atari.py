@@ -1,7 +1,8 @@
 # Inspired from https://github.com/raillab/dqn
 import random
 import numpy as np
-import gym
+import gymnasium as gym
+import os
 
 from dqn.agent import DQNAgent
 from dqn.replay_buffer import ReplayBuffer
@@ -17,10 +18,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     # If you have a checkpoint file, spend less time exploring
-    if(args.load_checkpoint_file):
-        eps_start= 0.01
+    if args.load_checkpoint_file:
+        eps_start = 0.01
     else:
-        eps_start= 1
+        eps_start = 1
 
     hyper_params = {
         "seed": 42,  # which seed to use
@@ -28,7 +29,7 @@ if __name__ == '__main__':
         "replay-buffer-size": int(5e3),  # replay buffer size
         "learning-rate": 1e-4,  # learning rate for Adam optimizer
         "discount-factor": 0.99,  # discount factor
-        "dqn_type":"neurips",
+        "dqn_type": "neurips",
         # total number of steps to run the environment for
         "num-steps": int(1e6),
         "batch-size": 32,  # number of transitions to optimize at the same time
@@ -46,19 +47,34 @@ if __name__ == '__main__':
     random.seed(hyper_params["seed"])
 
     assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
-    env = gym.make(hyper_params["env"])
-    env.seed(hyper_params["seed"])
+    
+    # 创建视频目录
+    video_dir = './video/'
+    os.makedirs(video_dir, exist_ok=True)
+    
+    # 使用Gymnasium API创建环境
+    env = gym.make(hyper_params["env"], render_mode='rgb_array')
+    env.reset(seed=hyper_params["seed"])
 
     env = NoopResetEnv(env, noop_max=30)
     env = MaxAndSkipEnv(env, skip=4)
     env = EpisodicLifeEnv(env)
+    
+    # FireResetEnv在reset时需要返回两个值，但在wrapper中可能有问题
+    # 先暂时注释掉，或者修复FireResetEnv
     env = FireResetEnv(env)
+    
     env = WarpFrame(env)
     env = PyTorchFrame(env)
     env = ClipRewardEnv(env)
     env = FrameStack(env, 4)
-    env = gym.wrappers.Monitor(
-        env, './video/', video_callable=lambda episode_id: episode_id % 50 == 0, force=True)
+    
+    # 使用Gymnasium的RecordVideo
+    env = gym.wrappers.RecordVideo(
+        env, 
+        video_dir,
+        episode_trigger=lambda episode_id: episode_id % 50 == 0,
+    )
 
     replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"])
 
@@ -74,7 +90,7 @@ if __name__ == '__main__':
         dqn_type=hyper_params["dqn_type"]
     )
 
-    if(args.load_checkpoint_file):
+    if args.load_checkpoint_file:
         print(f"Loading a policy - { args.load_checkpoint_file } ")
         agent.policy_network.load_state_dict(
             torch.load(args.load_checkpoint_file))
@@ -83,27 +99,32 @@ if __name__ == '__main__':
         float(hyper_params["num-steps"])
     episode_rewards = [0.0]
 
-    state = env.reset()
+    state, info = env.reset()
+    
     for t in range(hyper_params["num-steps"]):
         fraction = min(1.0, float(t) / eps_timesteps)
         eps_threshold = hyper_params["eps-start"] + fraction * \
             (hyper_params["eps-end"] - hyper_params["eps-start"])
         sample = random.random()
 
-        if(sample > eps_threshold):
+        if sample > eps_threshold:
             # Exploit
             action = agent.act(state)
         else:
             # Explore
             action = env.action_space.sample()
 
-        next_state, reward, done, info = env.step(action)
+        # Gymnasium的step返回5个值
+        next_state, reward, terminated, truncated, info = env.step(action)
+        
+        done = terminated or truncated
+        
         agent.memory.add(state, action, reward, next_state, float(done))
         state = next_state
 
         episode_rewards[-1] += reward
         if done:
-            state = env.reset()
+            state, info = env.reset()
             episode_rewards.append(0.0)
 
         if t > hyper_params["learning-starts"] and t % hyper_params["learning-freq"] == 0:
@@ -123,6 +144,9 @@ if __name__ == '__main__':
             print("mean 100 episode reward: {}".format(mean_100ep_reward))
             print("% time spent exploring: {}".format(int(100 * eps_threshold)))
             print("********************************************************")
+            
             torch.save(agent.policy_network.state_dict(), f'checkpoint.pth')
             np.savetxt('rewards_per_episode.csv', episode_rewards,
                        delimiter=',', fmt='%1.3f')
+    
+    env.close()
