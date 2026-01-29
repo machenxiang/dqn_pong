@@ -7,11 +7,12 @@ from gymnasium.wrappers import AtariPreprocessing, FrameStack, TransformObservat
 import torch
 import argparse
 from tqdm import tqdm
-from ppo.agent import PPO
+from ppo.agent import *
 import sys
 from ppo.neural_net import *
 from collections import deque
-from ppo.ppo_utils import *
+# from ppo.ppo_utils import *
+from ppo.ppo_trainer import *
 
 
 
@@ -24,12 +25,10 @@ if __name__ == '__main__':
     print("shape:",env.observation_space.shape)
     print("action:",env.action_space.n)
 
-    policy_net = PoliceNet(env.observation_space,env.action_space)
-    state,_ = env.reset()
-    # policy_net.print_shapes(state[0])
+    # policy_net = PoliceNet(env.observation_space,env.action_space)
+    # state,_ = env.reset()
+    # # policy_net.print_shapes(state[0])
 
+    ppo_train = PPOTrainer(env,batch_size=128,n_steps=2048)
+    ppo_train.train(total_time_steps=1e6)
 
-    sys.exit(0)
-
-    agent = PPO
-    train_on_policy_agent(env,agent,100)

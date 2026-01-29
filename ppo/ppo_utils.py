@@ -7,9 +7,9 @@ from gymnasium.wrappers import AtariPreprocessing, FrameStack, TransformObservat
 import torch
 import argparse
 from tqdm import tqdm
-from ppo.agent import PPO
+from .agent import *
 import sys
-from ppo.neural_net import *
+from .neural_net import *
 from collections import deque
 
 

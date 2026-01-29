@@ -7,11 +7,11 @@ from gymnasium.wrappers import AtariPreprocessing, FrameStack, TransformObservat
 import torch
 import argparse
 from tqdm import tqdm
-from ppo.agent import PPO
+from .agent import *
 import sys
-from ppo.neural_net import *
+from .neural_net import *
 from collections import deque
-from ppo.ppo_utils import *
+from .ppo_utils import *
 
 
 
@@ -20,7 +20,9 @@ class PPOTrainer:
         self.env = env
         self.batch_size = batch_size
         self.n_steps = n_steps
-        self.agent = PPOAgent
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
+    "cpu")
+        self.agent = PPOAgent(env=env,actor_lr=1e-3,critic_lr=1e-2,lmbda=0.95,epochs=10,eps=0.2,gamma=0.98,device=device)
 
         self.states = []
         self.actions = []
@@ -50,11 +52,11 @@ class PPOTrainer:
                 break
 
         return {
-            "states":np.array(self.states),
-            "actions":np.array(self.actions),
-            "rewards":np.array(self.rewards),
-            "next_states":np.array(self.next_states),
-            "dones":np.array(self.dones)
+            "states":(self.states),
+            "actions":(self.actions),
+            "rewards":(self.rewards),
+            "next_states":(self.next_states),
+            "dones":(self.dones)
         }
     
     def collect_multi_trajectories(self,trajectory_num = 10):
@@ -63,7 +65,7 @@ class PPOTrainer:
             for step in range(self.n_steps):
                 action = self.agent.take_action(state)
 
-                next_state,reward,terminated,truncated,info =env.step(action)
+                next_state,reward,terminated,truncated,info =self.env.step(action)
                 done = terminated or truncated
     
                 self.states.append(state)
@@ -75,13 +77,16 @@ class PPOTrainer:
                 state = next_state
                 if done:
                     break
+
+        print("type:",type(self.states[0]))
+        print("size:",((self.states[0]).shape))
                 
         return {
-            "states":np.array(self.states),
-            "actions":np.array(self.actions),
-            "rewards":np.array(self.rewards),
-            "next_states":np.array(self.next_states),
-            "dones":np.array(self.dones)
+            "states":torch.stack(self.states).to(self.agent.device),
+            "actions":torch.tensor(self.actions,dtype=torch.long, device=self.agent.device),
+            "rewards":torch.tensor(self.rewards,dtype=torch.float32, device= self.agent.device),
+            "next_states":torch.stack(self.next_states).to(self.agent.device),
+            "dones":torch.tensor(self.dones ,dtype= torch.float32,device=self.agent.device)
         }       
             
 
@@ -93,15 +98,17 @@ class PPOTrainer:
         self.next_states = []
         self.dones = []
 
-    def train_epoch(experience,n_epochs=10,mini_batch_size= 32):
-        states=torch.FloatTensor(experience['state'])
-        actions = torch.FloatTensor(experience['actions'])
-        rewards = torch.FloatTensor(experience['rewards'])
-        next_states = torch.FloatTensor(experience['next_states'])
-        dones = torch.FloatTensor(experience['dones'])
+    def train_epoch(self,experience,n_epochs=10,mini_batch_size= 32):
+        states=(experience['states'])
+        actions = (experience['actions'])
+        rewards = (experience['rewards'])
+        next_states = (experience['next_states'])
+        dones = (experience['dones'])
+
+        print("hhtype:",type(states[0]))
 
         dataset_size = len(states)
-        indices = np.arange(dataset_size)
+        indices = torch.arange(dataset_size,device=self.agent.device)
 
         for epoch in range(n_epochs):
             np.random.shuffle(indices)
@@ -110,12 +117,19 @@ class PPOTrainer:
                 batch_indices = indices[start:end]
 
                 batch_states = states[batch_indices]
-                ba
+                batch_actions =actions[batch_indices]
+                batch_rewards = rewards[batch_indices]
+                batch_next_states = next_states[batch_indices]
+                batch_dones = dones[batch_indices]
+                self.agent.update(batch_states,batch_actions,batch_rewards,batch_next_states,batch_dones)
 
 
 
     def train(self,total_time_steps = 1e6):
         timestep = 0
         while timestep<total_time_steps:
-            experience = self.collect_trajectories()
+            experiences = self.collect_multi_trajectories(trajectory_num=1)
             timestep+=self.n_steps
+            self.train_epoch(experiences,n_epochs=10,mini_batch_size=32)
+
+                

@@ -22,31 +22,24 @@ class PoliceNet(torch.nn.Module):
             torch.nn.Conv2d(in_channels=observation_space.shape[0],out_channels=16,kernel_size=8,stride=4),
             torch.nn.ReLU(),
             torch.nn.Conv2d(in_channels=16,out_channels=32,kernel_size=4,stride=2),
-            torch.nn.ReLU()
+            torch.nn.ReLU(),
+            torch.nn.Flatten() 
         )
+        with torch.no_grad():
+            dummy = torch.zeros(1, *observation_space.shape)
+            conv_out = self.conv(dummy)
+            self.n_flatten = conv_out.shape[1]
+
         self.fc=torch.nn.Sequential(
-            torch.nn.Linear(in_features=32*9*9,out_features=256),
+            torch.nn.Linear(self.n_flatten,out_features=256),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256,out_features=action_space.n)
         )
 
     def forward(self,x):
-        conv_out=self.conv(x).view(x.size()[0],-1)
+        conv_out=self.conv(x)
         return F.softmax(self.fc(conv_out))
     
-    def print_shapes(self, x):
-        print(f"输入形状: {x.shape}")  
-
-        conv1_out = self.conv[0](x)
-        print("conv 层数：",len( self.conv))
-        print(f"Conv1后: {conv1_out.shape}")  
-
-        conv2_out = self.conv[2](conv1_out)
-        print(f"Conv2后: {conv2_out.shape}")  
-
-        flattened = conv2_out.view(x.size()[0], -1)
-        print(f"展平后: {flattened.shape}")  # [batch, ?]
-
 
 class ValueNet(torch.nn.Module):
     def __init__(self,
@@ -56,17 +49,23 @@ class ValueNet(torch.nn.Module):
             torch.nn.Conv2d(in_channels=observation_space.shape[0],out_channels=16,kernel_size=8,stride=4),
             torch.nn.ReLU(),
             torch.nn.Conv2d(in_channels=16,out_channels=32,kernel_size=4,stride=2),
-            torch.nn.ReLU()
+            torch.nn.ReLU(),
+            torch.nn.Flatten()
         )
 
+        with torch.no_grad():
+            dummy = torch.zeros(1, *observation_space.shape)
+            conv_out = self.conv(dummy)
+            self.n_flatten = conv_out.shape[1]
+
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(in_features=32*9*9,out_features=256),
+            torch.nn.Linear(self.n_flatten,out_features=256),
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256,out_features=1)
         )
 
     def forward(self,x):
-        x= F.relu(self.conv(x))
+        x= self.conv(x)
         return self.fc(x)
 
 
