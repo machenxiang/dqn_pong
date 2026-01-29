@@ -78,8 +78,6 @@ class PPOTrainer:
                 if done:
                     break
 
-        print("type:",type(self.states[0]))
-        print("size:",((self.states[0]).shape))
                 
         return {
             "states":torch.stack(self.states).to(self.agent.device),
@@ -105,10 +103,10 @@ class PPOTrainer:
         next_states = (experience['next_states'])
         dones = (experience['dones'])
 
-        print("hhtype:",type(states[0]))
-
         dataset_size = len(states)
         indices = torch.arange(dataset_size,device=self.agent.device)
+
+        print(f"dataset_size:{dataset_size},mini_batch_size:{mini_batch_size}")
 
         for epoch in range(n_epochs):
             np.random.shuffle(indices)
