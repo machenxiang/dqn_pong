@@ -35,7 +35,7 @@ class PolicyNet(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256,out_features=action_space.n)
         )
-        self.debug = True
+        self.debug = False
 
     def forward(self,x):
         if self.debug:

@@ -27,8 +27,7 @@ class PPOAgent:
         state = state.to(self.device)
         with torch.no_grad():
             logits = self.actor(state)
-            print("hhhhhhhhhhh probs:",logits)
-            action_dist = torch.distributions.Categorical(logits)
+            action_dist = torch.distributions.Categorical(logits=logits)
             action = action_dist.sample()
 
         return action.item()
@@ -62,19 +61,20 @@ class PPOAgent:
             dones =dones.unsqueeze(-1)
         td_target = rewards+self.gamma*self.critic(next_states)*(1-dones)
         td_delta = td_target-self.critic(states)
-        advantage = self.compute_advantage(self.gamma,self.lmbda,td_delta)
+        advantage = self.compute_advantage(self.gamma,self.lmbda,td_delta).detach()
 
         #old_log_probs = torch.log(self.actor(states).gather(1,actions)).detach()
-        logits = self.actor(states)
-        dist = torch.distributions.Categorical(logits=logits)
-        old_log_probs = dist.log_prob(actions)
+        with torch.no_grad():
+            logits = self.actor(states)
+            dist = torch.distributions.Categorical(logits=logits)
+            old_log_probs = dist.log_prob(actions)
+
 
         for _ in range(self.epochs):
             #log_probs = torch.log(self.actor(states).gather(1,actions))
             logits = self.actor(states)
             dist = torch.distributions.Categorical(logits=logits)
-            action = dist.sample()
-            log_probs = dist.log_prob(action)
+            log_probs = dist.log_prob(actions)
             ratio = torch.exp(log_probs-old_log_probs)
             surr1 = ratio*advantage
             surr2 = torch.clamp(ratio,1-self.eps,1+self.eps)*advantage
@@ -88,3 +88,11 @@ class PPOAgent:
             self.critic_optimizer.step()
             
         # return
+
+    def save(self):
+        torch.save({
+            "actor": actor.state_dict(),
+            "critic": critic.state_dict(),
+            "actor_opt": actor_optimizer.state_dict(),
+            "critic_opt": critic_optimizer.state_dict(),
+            }, "ppo_checkpoint.pt")

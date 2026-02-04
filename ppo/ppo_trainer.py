@@ -106,7 +106,7 @@ class PPOTrainer:
         dataset_size = len(states)
         indices = torch.arange(dataset_size,device=self.agent.device)
 
-        print(f"dataset_size:{dataset_size},mini_batch_size:{mini_batch_size}")
+        # print(f"dataset_size:{dataset_size},mini_batch_size:{mini_batch_size}")
 
         for epoch in range(n_epochs):
             np.random.shuffle(indices)
@@ -129,6 +129,11 @@ class PPOTrainer:
             experiences = self.collect_multi_trajectories(trajectory_num=1)
             timestep+=self.n_steps
             self.train_epoch(experiences,n_epochs=10,mini_batch_size=32)
+            if timestep%(self.n_steps * 10) == 0:
+                self.evaluate()
+                self.agent.save()
+
+
 
     def evaluate(self,n_episodes=5):
         total_rewards = []
