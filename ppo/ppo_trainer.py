@@ -22,7 +22,7 @@ class PPOTrainer:
         self.n_steps = n_steps
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "cpu")
-        self.agent = PPOAgent(env=env,actor_lr=1e-3,critic_lr=1e-2,lmbda=0.95,epochs=10,eps=0.2,gamma=0.98,device=device)
+        self.agent = PPOAgent(env=env,actor_lr=3e-4,critic_lr=1e-3,lmbda=0.95,epochs=10,eps=0.2,gamma=0.98,device=device)
 
         self.states = []
         self.actions = []
@@ -60,9 +60,12 @@ class PPOTrainer:
         }
     
     def collect_multi_trajectories(self,trajectory_num = 10):
+        self.clean_buffer()
+        step_num = 0
         for _ in range(trajectory_num):
             state,_ = self.env.reset()
-            for step in range(self.n_steps):
+            done = False
+            while not done:
                 action = self.agent.take_action(state)
 
                 next_state,reward,terminated,truncated,info =self.env.step(action)
@@ -75,9 +78,7 @@ class PPOTrainer:
                 self.dones.append(done)
     
                 state = next_state
-                if done:
-                    break
-
+                step_num = step_num+1
                 
         return {
             "states":torch.stack(self.states).to(self.agent.device),
@@ -85,7 +86,7 @@ class PPOTrainer:
             "rewards":torch.tensor(self.rewards,dtype=torch.float32, device= self.agent.device),
             "next_states":torch.stack(self.next_states).to(self.agent.device),
             "dones":torch.tensor(self.dones ,dtype= torch.float32,device=self.agent.device)
-        }       
+        },step_num       
             
 
 
@@ -125,12 +126,22 @@ class PPOTrainer:
 
     def train(self,total_time_steps = 1e6):
         timestep = 0
+        episode = 0
         while timestep<total_time_steps:
-            experiences = self.collect_multi_trajectories(trajectory_num=1)
-            timestep+=self.n_steps
-            self.train_epoch(experiences,n_epochs=10,mini_batch_size=32)
-            if timestep%(self.n_steps * 10) == 0:
-                self.evaluate()
+            experiences,steps_collected = self.collect_multi_trajectories(trajectory_num=1)
+            if experiences is None:
+                print("no experience")
+                continue
+            timestep+=steps_collected
+            episode+=1
+            print(f"\nEpisode {episode}:")
+            print(f"  收集步数: {steps_collected}")
+            print(f"  总步数: {timestep}/{total_time_steps}")
+            if len(experiences["states"])>=32:
+                 self.train_epoch(experiences,n_epochs=10,mini_batch_size=32)
+
+            if episode%(500) == 0:
+                self.evaluate()   
                 self.agent.save()
 
 
@@ -138,7 +149,7 @@ class PPOTrainer:
     def evaluate(self,n_episodes=5):
         total_rewards = []
         for episode in range(n_episodes):
-            state = self.env.reset()
+            state,_ = self.env.reset()
             episode_reward = 0
             done = False
 

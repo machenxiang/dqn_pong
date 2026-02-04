@@ -21,8 +21,10 @@ class PolicyNet(torch.nn.Module):
         self.conv= torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=observation_space.shape[0],out_channels=16,kernel_size=8,stride=4),
             torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(16),
             torch.nn.Conv2d(in_channels=16,out_channels=32,kernel_size=4,stride=2),
             torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(32),
             torch.nn.Flatten() 
         )
         with torch.no_grad():
@@ -33,6 +35,7 @@ class PolicyNet(torch.nn.Module):
         self.fc=torch.nn.Sequential(
             torch.nn.Linear(self.n_flatten,out_features=256),
             torch.nn.ReLU(),
+            torch.nn.LayerNorm(256),
             torch.nn.Linear(in_features=256,out_features=action_space.n)
         )
         self.debug = False
@@ -63,8 +66,10 @@ class ValueNet(torch.nn.Module):
         self.conv = torch.nn.Sequential( 
             torch.nn.Conv2d(in_channels=observation_space.shape[0],out_channels=16,kernel_size=8,stride=4),
             torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(16),
             torch.nn.Conv2d(in_channels=16,out_channels=32,kernel_size=4,stride=2),
             torch.nn.ReLU(),
+            torch.nn.BatchNorm2d(32),
             torch.nn.Flatten()
         )
 
@@ -76,6 +81,7 @@ class ValueNet(torch.nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(self.n_flatten,out_features=256),
             torch.nn.ReLU(),
+            torch.nn.LayerNorm(256),
             torch.nn.Linear(in_features=256,out_features=1)
         )
 
