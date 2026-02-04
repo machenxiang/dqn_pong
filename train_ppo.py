@@ -105,7 +105,7 @@ if __name__ == '__main__':
     print("shape:",env.observation_space.shape)
     print("action:",env.action_space.n)
 
-    # policy_net = PoliceNet(env.observation_space,env.action_space)
+    # policy_net = PolicyNet(env.observation_space,env.action_space)
     state,_ = env.reset()
     print("state type:",type(state))
     print(state.array)

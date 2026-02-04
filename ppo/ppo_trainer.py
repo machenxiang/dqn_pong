@@ -130,4 +130,23 @@ class PPOTrainer:
             timestep+=self.n_steps
             self.train_epoch(experiences,n_epochs=10,mini_batch_size=32)
 
-                
+    def evaluate(self,n_episodes=5):
+        total_rewards = []
+        for episode in range(n_episodes):
+            state = self.env.reset()
+            episode_reward = 0
+            done = False
+
+            while not done:
+                action = self.agent.take_action(state)
+                next_state,reward,terminated,truncated,info =self.env.step(action)
+                done = terminated or truncated
+                episode_reward += reward
+
+            total_rewards.append(episode_reward)
+
+        avg_reward = np.mean(episode_reward)
+        print(f"评估: {n_episodes}回合平均奖励: {avg_reward:.2f}")
+        return avg_reward
+
+    

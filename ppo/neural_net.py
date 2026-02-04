@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import gymnasium as gym  # 修改这里
 from gymnasium import spaces  # 修改这里
 
-class PoliceNet(torch.nn.Module):
+class PolicyNet(torch.nn.Module):
     def __init__(self,
                  observation_space: spaces.Box,
                  action_space: spaces.Discrete):
@@ -35,10 +35,25 @@ class PoliceNet(torch.nn.Module):
             torch.nn.ReLU(),
             torch.nn.Linear(in_features=256,out_features=action_space.n)
         )
+        self.debug = True
 
     def forward(self,x):
+        if self.debug:
+            print(f"Input x - min: {x.min().item():.6f}, max: {x.max().item():.6f}, mean: {x.mean().item():.6f}")
+            print(f"Input x - any nan: {torch.isnan(x).any().item()}")
         conv_out=self.conv(x)
-        return F.softmax(self.fc(conv_out))
+
+        if self.debug:
+            print(f"Conv out - min: {conv_out.min().item():.6f}, max: {conv_out.max().item():.6f}, mean: {conv_out.mean().item():.6f}")
+            print(f"Conv out - any nan: {torch.isnan(conv_out).any().item()}")
+        fc_out = self.fc(conv_out)
+        if self.debug:
+            print(f"FC out - min: {fc_out.min().item():.6f}, max: {fc_out.max().item():.6f}, mean: {fc_out.mean().item():.6f}")
+            print(f"FC out - any nan: {torch.isnan(fc_out).any().item()}")
+            print(f"FC out - any inf: {torch.isinf(fc_out).any().item()}")
+            print("shape:",fc_out.shape)
+            print(fc_out)
+        return fc_out
     
 
 class ValueNet(torch.nn.Module):
