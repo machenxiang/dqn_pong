@@ -91,8 +91,8 @@ class PPOAgent:
 
     def save(self):
         torch.save({
-            "actor": actor.state_dict(),
-            "critic": critic.state_dict(),
-            "actor_opt": actor_optimizer.state_dict(),
-            "critic_opt": critic_optimizer.state_dict(),
+            "actor": self.actor.state_dict(),
+            "critic":  self.critic.state_dict(),
+            "actor_opt": self.actor_optimizer.state_dict(),
+            "critic_opt": self.critic_optimizer.state_dict(),
             }, "ppo_checkpoint.pt")

@@ -42,7 +42,7 @@ def train_on_policy_agent(env, agent, num_episodes):
                 pbar.update(1)
     return return_list
 
-def make_pong_env(render_mode=None, record_video=False):
+def make_pong_env(render_mode=None, record_video=False,timestep=0):
     """
     简化版本：让FrameStack输出(4, 84, 84)格式
     """
@@ -71,19 +71,22 @@ def make_pong_env(render_mode=None, record_video=False):
     # 自定义FrameStack包装器，返回(4, 84, 84)数组
     env = CustomFrameStack(env, num_stack=4)
     
-    # 转换为PyTorch张量
-    env = PyTorchTensorWrapper(env)
+
     
     # 录制视频
     if record_video:
         video_dir = './ppo_videos/'
         os.makedirs(video_dir, exist_ok=True)
+        name_prefix = f"eval_{timestep}"
         env = gym.wrappers.RecordVideo(
             env,
             video_dir,
-            episode_trigger=lambda episode_id: episode_id % 50 == 0,
+            episode_trigger=lambda episode_id:True,
+            name_prefix= name_prefix
         )
-    
+        
+        # 转换为PyTorch张量
+    env = PyTorchTensorWrapper(env)
     return env
 
 
